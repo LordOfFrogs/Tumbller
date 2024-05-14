@@ -274,7 +274,7 @@ ISR(PCINT2_vect) {
 //   balanceCarWithSetpoint(dt, setpoint);
 // }
 
-void updateWithSetpoint(double setpoint) {
+void update(double setpoint, double steer) {
   double dt = (micros() - prev_micros)*1.0 / 1E+6;
   prev_micros = micros();
 
@@ -297,9 +297,9 @@ void updateWithSetpoint(double setpoint) {
   prev_err = p_error;
   output = p_error + i_error + d_error;
   
-  pwm_left = rpsToPWM(output);
-  pwm_right = rpsToPWM(output);
-  if (abs(kalmanfilter_angle)>23) { 
+  pwm_left = max(rpsToPWM(output) - steer, -255);
+  pwm_right = min(rpsToPWM(output) + steer, 255);
+  if (abs(kalmanfilter_angle)>27) { 
     digitalWrite(AIN1, HIGH);
     digitalWrite(BIN1, LOW);
     analogWrite(PWMA_LEFT, 0);
@@ -307,21 +307,22 @@ void updateWithSetpoint(double setpoint) {
     integral = 0;
     return;
   }
-  if (output > 0) {
+  
+  if (pwm_left > 0) {
     digitalWrite(AIN1, 1);
-    digitalWrite(BIN1, 1);
     analogWrite(PWMA_LEFT, pwm_left);
-    analogWrite(PWMB_RIGHT, pwm_right);
   } else {
     digitalWrite(AIN1, 0);
-    digitalWrite(BIN1, 0);
     analogWrite(PWMA_LEFT, -pwm_left);
+  }
+
+  if (pwm_right > 0) {
+    digitalWrite(BIN1, 1);
+    analogWrite(PWMB_RIGHT, pwm_right);
+  } else {
+    digitalWrite(BIN1, 0);
     analogWrite(PWMB_RIGHT, -pwm_right);
   }
-}
-
-void update() {
-  updateWithSetpoint(zero_setpoint);
 }
 
 void carInitialize()

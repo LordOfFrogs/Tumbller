@@ -4,10 +4,12 @@
 
 
 int period = 4000;
-double angle_amplitude = 2.0;
+const double angle_amplitude = 2.0;
 
 double drive = 0.0;
 double steer = 0.0;
+const int steer_amplitude = 30;
+const double DEADZONE = 0.3;
 
 void setup() {
   // put your setup code here, to run once:
@@ -45,7 +47,10 @@ void loop() {
     int steer_input = Serial.parseInt();
     drive = drive_input*2.0 / 255.0 - 1.0;
     steer = steer_input*2.0 / 255.0 - 1.0;
+    if (abs(steer) <= DEADZONE) {
+      steer = 0;
+    }
   }
   
-  updateWithSetpoint(drive * angle_amplitude);
+  update(drive * angle_amplitude, steer * steer_amplitude);
 }
