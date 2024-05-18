@@ -52,13 +52,13 @@ float kalmanfilter_angle;
 char balance_angle_min = -22;
 char balance_angle_max = 22;
 
-const double kp = 0.305;
-const double kd = 0.1;
-const double ki = 1.9;
+const double kp = 0.4;
+const double kd = 0.01;
+const double ki = 7.5;
 double integral = 0.0;
 double integral_max = 4;
 double zero_setpoint = -0.75;
-double prev_err = 0.0;
+double prev_angle = 0.0;
 const double int_decay = 0.3;
 double angle_raw = 0.0;
 double angle_test = 0.0;
@@ -66,6 +66,7 @@ double vel = 0.0;
 const double vel_max = 4.0;
 double prevAngle = 0.0;
 double output = 0.0;
+double prev_output = 0.0;
 
 unsigned long prev_micros;
 
@@ -106,7 +107,6 @@ void updateAngle(double dt) {
   angle_test = kalmanfilter1.angle;
   kalmanfilter.Angle(ax, ay, az, gx, gy, gz, dt, Q_angle, Q_gyro, R_angle, C_0, K1);
   kalmanfilter_angle = kalmanfilter.angle;
-  //Serial.println(kalmanfilter_angle);
 }
 
 void updateEncoderSpeeds(double dt) {
@@ -124,8 +124,8 @@ double getOutputRPSfromSetpoint(double dt, double setpoint) {
   //integral *= (1-int_decay*dt);
   integral = constrain(integral,-integral_max,integral_max);
   double i_error = ki * integral;
-  double d_error = kd * ((zero_setpoint + setpoint - kalmanfilter_angle) - prev_err) / dt;
-  prev_err = p_error;
+  double d_error = kd * (kalmanfilter_angle - prev_angle) / dt;
+  prev_angle = kalmanfilter_angle;
   double output = p_error + i_error + d_error;
   return output;
 }
@@ -140,6 +140,7 @@ int rpsToPWM(double rps) {
   return constrain(dutyCycle, -255, 255);
 }
 
+// OLD
 void balanceCarWithSetpoint(double dt, double setpoint) {
   vel += getOutputRPSfromSetpoint(dt, setpoint)*dt;
   //vel = constrain(vel, -vel_max, vel_max);
@@ -278,28 +279,22 @@ void update(double setpoint, double steer) {
   double dt = (micros() - prev_micros)*1.0 / 1E+6;
   prev_micros = micros();
 
-  // double accAngle = atan2(mpu.getAccelerationY(), mpu.getAccelerationZ())*RAD_TO_DEG;
-  // double gyroRate = map(mpu.getRotationX(), -32768, 32767, -250, 250);
-  // double gyroAngle = (float)gyroRate*dt;
-  // Serial.println(accAngle);
-  // angle_raw = gyroRate;
-  // double alpha = 0.25/(0.25 + dt);
-  // kalmanfilter_angle = alpha*(prevAngle+gyroAngle) + (1-alpha)*(accAngle);
-  // prevAngle = kalmanfilter_angle;
   updateAngle(dt);
 
+  // PID
   double p_error = kp * (zero_setpoint + setpoint - kalmanfilter_angle);
   integral += (zero_setpoint + setpoint - kalmanfilter_angle)*dt;
   //integral *= (1-int_decay*dt);
   integral = constrain(integral,-integral_max,integral_max);
   double i_error = ki * integral;
-  double d_error = kd * ((zero_setpoint + setpoint - kalmanfilter_angle) - prev_err) * dt;
-  prev_err = p_error;
+  double d_error = kd * (prev_angle - kalmanfilter_angle) / dt;
+  prev_angle = kalmanfilter_angle;
   output = p_error + i_error + d_error;
   
+  // drive
   pwm_left = max(rpsToPWM(output) - steer, -255);
   pwm_right = min(rpsToPWM(output) + steer, 255);
-  if (abs(kalmanfilter_angle)>27) { 
+  if (abs(kalmanfilter_angle)>27) { // check for tipped over
     digitalWrite(AIN1, HIGH);
     digitalWrite(BIN1, LOW);
     analogWrite(PWMA_LEFT, 0);
@@ -334,6 +329,7 @@ void carInitialize()
   pinMode(STBY_PIN, OUTPUT);
   carStop();
   Wire.begin();
+
   mpu.initialize();
   mpu.setXAccelOffset(1946);
   mpu.setYAccelOffset(1701);
@@ -341,6 +337,8 @@ void carInitialize()
   mpu.setXGyroOffset(-201);
   mpu.setYGyroOffset(292);
   mpu.setZGyroOffset(-1);
+
+  // interrupts
   attachInterrupt(digitalPinToInterrupt(ENCODER_LEFT_A_PIN), encoderCountLeftA, CHANGE);
   PCICR |= B00000100; // enable pin change interrupt on Port D
   PCMSK2 |= B00010000; // enable pin change interrupt on Port D for PCINT20 (pin 4)

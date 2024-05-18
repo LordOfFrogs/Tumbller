@@ -38,6 +38,11 @@ class XboxController(object):
         x = self.LeftJoystickX
         y = self.LeftJoystickY
         return (x, y)
+    
+    def getRightJoystick(self):
+        x = self.RightJoystickX
+        y = self.RightJoystickY
+        return (x, y)
 
     def _monitor_controller(self):
         while True:

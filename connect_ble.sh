@@ -1,1 +1,0 @@
-ble-serial -d 48:87:2D:F0:ED:E4 -v -w 0000ffe2-0000-1000-8000-00805f9b34fb -r 0000ffe1-0000-1000-8000-00805f9b34fb --permit wo

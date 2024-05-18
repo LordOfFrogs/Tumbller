@@ -13,7 +13,7 @@ if not s.is_open:
     s.open()
 
 while True:
-    left_x, left_y = controller.getLeftJoystick()
+    left_x, left_y = controller.getRightJoystick()
     
     left_x = int((left_x+1)/2 * 255)
     left_y = int((left_y+1)/2 * 255)
