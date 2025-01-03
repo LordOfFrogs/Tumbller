@@ -1,0 +1,1 @@
+Code for the ELEGOO Tumbller robot and Python control scripts. Put Tumbller.ino and the other C++ files (.cpp, .h) into a folder and upload them with the Arduino IDE. Run the Python files to control the robot (configure serial ports so the Tumbller connects through BLE on the port named in control.py). 
